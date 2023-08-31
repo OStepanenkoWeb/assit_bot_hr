@@ -1,8 +1,6 @@
 const TelegramApi = require('node-telegram-bot-api')
 
-const token = '6656042730:AAH-g4j6UzewhCTe8cH8b88A0b-6WvgbA-0'
-
-const bot = new TelegramApi(token, { polling: true })
+const bot = new TelegramApi(process.env.TOKEN_BOT, { polling: true })
 
 const decorOptions = {
     reply_markup: JSON.stringify( {

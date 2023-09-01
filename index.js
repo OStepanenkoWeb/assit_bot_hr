@@ -169,14 +169,18 @@ bot.on('callback_query', async msg => {
             '5.  военный билет или приписное.\n' +
             '6.  свидетельство о рождение ребенка (детей);\n' +
             '7.  реквизиты карты ( или заявление) \n' +
+            '8. Адрес куда доставить документы.\n' +
+            '9. Заявление на обработку персональных данных.\n' +
             '\n' +
-            'Оригиналы заявлений с «живой» подписью нужно будет в дальнейшем отдать курьеру. ' +
-            'Вместе с оригиналами заявлений ему будет необходимо отдать оригинал трудовой книжки ( если бумажная)')
+            'Если вы выбрали удаленный формат оформления оригиналы заявлений с «живой» подписью нужно будет в дальнейшем отдать курьеру. ' +
+            'Вместе с оригиналами заявлений ему будет необходимо отдать оригинал трудовой книжки ( если бумажная).')
+
+        await bot.sendMessage(chatIdUsr, "<a href='https://drive.google.com/file/d/1tlYCRJFbzcxSF1Ije3_goFhDkkyN35PA/view?usp=sharing'>Заявление на обработку персональных данных</>",{parse_mode: "HTML"})
 
         const users = await getAdmins()
 
         users.every(async user => {
-            await bot.sendMessage(user.chatId, `Заявка от ${user.firstName} ${user.lastName}: \@${user.userName}
+            await bot.sendMessage(user.chatId, `Заявка от ${candidate.firstName} ${candidate.lastName}: \@${candidate.userName}
         ✅ Место оформления: ${candidate.office}
         ✅ Техника: ${candidate.needTech}
         ✅ Тип трудовой сейчас: ${candidate.workBook}

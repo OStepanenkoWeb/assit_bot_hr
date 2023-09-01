@@ -102,15 +102,22 @@ bot.on('callback_query', async msg => {
     if(['Нужен монитор и ноутбук', 'Нужен монитор', 'Нужен ноутбук', 'Не нужна'].includes(data)) {
         await bot.sendMessage(chatId, 'Какая у вас трудовая книжка?', workBookOptions)
         candidate.needTech = data
-        candidate.save()
+        await candidate.save()
 
         return
     }
 
     if(['Электронная трудовая', 'Бумажная трудовая'].includes(data)) {
-        await bot.sendMessage(chatId, 'В каком виде хотите продолжить вести трудовую книжку?', workBookMoreOptions)
         candidate.workBook = data
-        candidate.save()
+        await candidate.save()
+
+        if(data === 'Электронная трудовая') {
+            await bot.sendMessage(chatId, 'Зарплатный проект Альфа банк. Если ли у вас карта?', salaryBookMoreOptions)
+            return
+        }
+
+        await bot.sendMessage(chatId, 'В каком виде хотите продолжить вести трудовую книжку?', workBookMoreOptions)
+
 
         return
     }
@@ -125,7 +132,7 @@ bot.on('callback_query', async msg => {
             )
         }
             candidate.needWorkBook = data
-            candidate.save()
+        await candidate.save()
 
         await bot.sendMessage(chatId, 'Зарплатный проект Альфа банк. Если ли у вас карта?', salaryBookMoreOptions)
 
@@ -144,7 +151,7 @@ bot.on('callback_query', async msg => {
             await bot.sendMessage(chatId, 'Отправьте пожалуйста реквизиты своего счета HR')
         }
         candidate.order = data
-        candidate.save()
+        await candidate.save()
 
         await bot.sendMessage(chatId, 'Для дальнейшего оформления необходимо прислать HR менеджеру следующий пакет документов:' +
             'Фото/сканы:\n' +

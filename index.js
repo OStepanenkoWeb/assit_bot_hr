@@ -1,13 +1,23 @@
 const TelegramApi = require('node-telegram-bot-api')
-const fs = require('fs').promises;
 const {decorOptions, techOptions, workBookOptions, workBookMoreOptions, salaryBookMoreOptions} = require('./buttonOption')
+const sequelize = require('./db')
+const UserModel = require('./models')
 require('dotenv').config()
 
 const bot = new TelegramApi(process.env.TOKEN_BOT, { polling: true })
 
-const workerData = {}
+const testConnectDB = async () => {
+    try {
+        await sequelize.authenticate()
+        await sequelize.sync()
+        console.log('Connection has been established successfully.')
+    } catch (error) {
+        console.error('Unable to connect to the database:', error)
+    }
+}
 
-let dataCandidates = {}
+testConnectDB()
+
 
 // Установка команд
 bot.setMyCommands( [
@@ -19,25 +29,41 @@ bot.setMyCommands( [
 bot.on( 'message',  async msg => {
     const text = msg.text
     const chatId = msg.chat.id
-    const userName = msg.from.username
 
 
-    await readCandidateDate()
+    try {
+        const user = await UserModel.findOne({chatId})
+        const isAdmin = user.admin
 
-    if (dataCandidates[userName]) {
-        return await bot.sendMessage(chatId, 'Извините, но Ваша анкета уже была отправлена HR менеджеру :)')
-    }
+        if (user && user.order && !isAdmin) {
+            return await bot.sendMessage(chatId, 'Извините, но Ваша анкета уже была отправлена HR менеджеру :)')
+        }
 
-    if (text === '/start') {
-        await bot.sendSticker(chatId, 'https://tlgrm.ru/_/stickers/897/df3/897df311-e19d-4a7d-8b27-4929abbcf2cc/1.webp')
-        await bot.sendMessage(chatId, 'Добро пожаловать в ассистент бот, который поможет Вам с оформлением в нашей компании:)' +
-            'Выберите, пожалуйста, предпочтительный способ оформления)', decorOptions)
 
-        return
-    }
+        if (text === '/start') {
+            if(!isAdmin) {
+                await UserModel.create({chatId})
+            }
 
-    if (text === '/info') {
-        return await bot.sendMessage(chatId, `${msg.from.first_name} ${msg.from.last_name} компания Ай-Ди Технологии управления занимается разработкой и внедрением собственного программного обеспечения`)
+            await bot.sendSticker(chatId, 'https://tlgrm.ru/_/stickers/897/df3/897df311-e19d-4a7d-8b27-4929abbcf2cc/1.webp')
+            await bot.sendMessage(chatId, 'Добро пожаловать в ассистент бот, который поможет Вам с оформлением в нашей компании:)' +
+                'Выберите, пожалуйста, предпочтительный способ оформления)', decorOptions)
+            return
+
+        }
+
+
+        if (text === '/info') {
+            return await bot.sendMessage(chatId, `${msg.from.first_name} ${msg.from.last_name} компания Ай-Ди Технологии управления занимается разработкой и внедрением собственного программного обеспечения`)
+        }
+    } catch (e) {
+        const users = await getAdmins()
+
+        if (Array.isArray(users) && users.length) {
+            users.every(async user => {
+                    await bot.sendMessage(user.chatId, `Произошла ошибка отправки сообщения: ${e}`)
+            })
+        }
     }
 
     return await bot.sendMessage(chatId, 'Извините, но я пока не умею отвечать на незнакомые сообщения :(')
@@ -48,33 +74,43 @@ bot.on( 'message',  async msg => {
 bot.on('callback_query', async msg => {
     const data = msg.data
     const chatId = msg.message.chat.id
+    const candidate = await UserModel.findOne({ chatId })
+
+    candidate.userName = msg.from.username
+    candidate.firstName = msg.from.first_name
+    candidate.lastName = msg.from.last_name
+    await candidate.save()
 
     if(data === 'Офис Москва') {
         await bot.sendMessage(chatId, 'Ждем вас с нетерпением в нашем офисе по адресу' +
             '' +
             'г. Москва, ул. Дербеневская набережная д.11А')
-        workerData.office = data
+        candidate.office = data
+        candidate.save()
 
         return
     }
 
     if(data === 'Удаленное') {
         await bot.sendMessage(chatId, 'Какая техника Вам потребуется для работы?', techOptions)
-        workerData.office = data
+        candidate.office = data
+        candidate.save()
 
         return
     }
 
     if(['Нужен монитор и ноутбук', 'Нужен монитор', 'Нужен ноутбук', 'Не нужна'].includes(data)) {
         await bot.sendMessage(chatId, 'Какая у вас трудовая книжка?', workBookOptions)
-        workerData.needTech = data
+        candidate.needTech = data
+        candidate.save()
 
         return
     }
 
     if(['Электронная трудовая', 'Бумажная трудовая'].includes(data)) {
         await bot.sendMessage(chatId, 'В каком виде хотите продолжить вести трудовую книжку?', workBookMoreOptions)
-        workerData.workBook = data
+        candidate.workBook = data
+        candidate.save()
 
         return
     }
@@ -88,7 +124,9 @@ bot.on('callback_query', async msg => {
                 {parse_mode: "HTML"}
             )
         }
-            workerData.needWorkBook = data
+            candidate.needWorkBook = data
+            candidate.save()
+
         await bot.sendMessage(chatId, 'Зарплатный проект Альфа банк. Если ли у вас карта?', salaryBookMoreOptions)
 
         return
@@ -105,7 +143,8 @@ bot.on('callback_query', async msg => {
         if ('Есть Альфа счет' === data) {
             await bot.sendMessage(chatId, 'Отправьте пожалуйста реквизиты своего счета HR')
         }
-        workerData.order = data
+        candidate.order = data
+        candidate.save()
 
         await bot.sendMessage(chatId, 'Для дальнейшего оформления необходимо прислать HR менеджеру следующий пакет документов:' +
             'Фото/сканы:\n' +
@@ -120,33 +159,24 @@ bot.on('callback_query', async msg => {
             'Оригиналы заявлений с «живой» подписью нужно будет в дальнейшем отдать курьеру. ' +
             'Вместе с оригиналами заявлений ему будет необходимо отдать оригинал трудовой книжки ( если бумажная)')
 
+        const users = await getAdmins()
 
-        await bot.sendMessage(process.env.ADMIN_ID, `Заявка от ${msg.from.first_name} ${msg.from.last_name}: \@${msg.from.username}
-        ✅ Место оформления: ${workerData.office}
-        ✅ Техника: ${workerData.needTech}
-        ✅ Тип трудовой сейчас: ${workerData.workBook}
-        ✅ Тип трудовой нужен: ${workerData.needWorkBook}
-        ✅ Счет в Альфа Банк:  ${workerData.order}
+        users.every(async user => {
+            await bot.sendMessage(user.chatId, `Заявка от ${user.firstName} ${user.lastName}: \@${user.userName}
+        ✅ Место оформления: ${candidate.office}
+        ✅ Техника: ${candidate.needTech}
+        ✅ Тип трудовой сейчас: ${candidate.workBook}
+        ✅ Тип трудовой нужен: ${candidate.needWorkBook}
+        ✅ Счет в Альфа Банк:  ${candidate.order}
         `)
+        })
     }
-
-    await saveCandidateDate(msg)
 })
 
-async function saveCandidateDate(msg) {
-    dataCandidates[msg.from.username] = workerData
-    const nextCandidate = JSON.stringify(dataCandidates)
-    await fs.writeFile('./candidates.json', nextCandidate, err => {
-        if (err) {
-            console.log(err.message);
+async function getAdmins() {
+    return await UserModel.findAll({
+        where: {
+            admin: true
         }
     })
-}
-
-async function readCandidateDate() {
-    try {
-        const data = await fs.readFile('./candidates.json');
-        dataCandidates = JSON.parse(data)
-
-    } catch (e) {}
 }

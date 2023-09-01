@@ -182,10 +182,10 @@ bot.on('callback_query', async msg => {
         users.every(async user => {
             await bot.sendMessage(user.chatId, `Заявка от ${candidate.firstName} ${candidate.lastName}: \@${candidate.userName}
         ✅ Место оформления: Удаленное
-        ✅ Техника: ${candidate.needTech}
-        ✅ Тип трудовой сейчас: ${candidate.workBook}
-        ✅ Тип трудовой нужен: ${candidate.needWorkBook}
-        ✅ Счет в Альфа Банк:  ${candidate.order}
+        ✅ Техника: ${candidate.needTech || 'нет ответа'}
+        ✅ Тип трудовой сейчас: ${candidate.workBook || 'нет ответа'}
+        ✅ Тип трудовой нужен: ${candidate.needWorkBook || 'нет ответа'}
+        ✅ Счет в Альфа Банк:  ${candidate.order || 'нет ответа'}
         `)
         })
     }

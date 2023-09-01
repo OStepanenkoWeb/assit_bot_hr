@@ -181,7 +181,7 @@ bot.on('callback_query', async msg => {
 
         users.every(async user => {
             await bot.sendMessage(user.chatId, `Заявка от ${candidate.firstName} ${candidate.lastName}: \@${candidate.userName}
-        ✅ Место оформления: ${candidate.office}
+        ✅ Место оформления: Удаленное
         ✅ Техника: ${candidate.needTech}
         ✅ Тип трудовой сейчас: ${candidate.workBook}
         ✅ Тип трудовой нужен: ${candidate.needWorkBook}
